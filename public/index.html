@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f0f0f">
+  <title>Fast to Eat · Today</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="theme.js" defer></script>
+</head>
+<body data-nav-page="today">
+  <div id="app">
+    <header>
+      <h1 id="greeting">⏱️ Fast to Eat</h1>
+      <div class="row">
+        <span id="streak-badge" class="streak-badge hidden">⭐ <span id="streak-count">0</span>-day streak</span>
+        <button data-theme-toggle class="btn-ghost" type="button">☀️</button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="state-label" id="state-label">Loading…</div>
+      <div class="countdown" id="countdown">--:--:--</div>
+      <div class="target-line" id="target-line"></div>
+      <div class="action">
+        <button id="action-btn" class="btn-primary hidden" type="button">Start fast</button>
+      </div>
+      <div id="action-status" class="status"></div>
+    </section>
+
+    <section class="card" id="break-meal-card">
+      <h2>Break-meal note (optional)</h2>
+      <label class="field">
+        <textarea id="break-meal-note" rows="2" placeholder="e.g. eggs + avocado, berries"></textarea>
+      </label>
+      <p class="muted" style="font-size:0.85rem">Saved with the fast when you end it.</p>
+    </section>
+
+    <section class="card" id="board">
+      <h2>Family board</h2>
+      <div id="leaderboard"></div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <a href="calendar" class="btn">⭐ Calendar</a>
+        <a href="settings" class="btn">⚙️ Settings</a>
+        <div class="grow"></div>
+        <button id="switch-user" class="btn-ghost" type="button">Switch user</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="nav.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>

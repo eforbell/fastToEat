@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f0f0f">
+  <title>Settings · Fast to Eat</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="theme.js" defer></script>
+</head>
+<body data-nav-page="settings">
+  <div id="app">
+    <header>
+      <h1>⚙️ Settings</h1>
+      <button data-theme-toggle class="btn-ghost" type="button">☀️</button>
+    </header>
+
+    <section class="card">
+      <h2>Your plan</h2>
+      <label class="field">
+        <span>Goal</span>
+        <select id="plan">
+          <option value="16:8">16:8 — 16h fast / 8h eat</option>
+          <option value="14:10">14:10 — 14h fast / 10h eat</option>
+          <option value="12:12">12:12 — 12h fast / 12h eat</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Eating window starts at</span>
+        <input id="eat-start" type="time">
+      </label>
+      <label class="field">
+        <span>Timezone (IANA)</span>
+        <input id="timezone" type="text" placeholder="America/Los_Angeles">
+      </label>
+      <label class="field" style="flex-direction:row; display:flex; align-items:center; gap:0.5rem">
+        <input id="reminders-enabled" type="checkbox" style="width:auto">
+        <span>Send brrr reminders at window boundaries</span>
+      </label>
+      <div class="row">
+        <button id="save-plan" class="btn-primary" type="button">Save plan</button>
+      </div>
+      <div id="plan-status" class="status"></div>
+    </section>
+
+    <section class="card">
+      <h2>brrr.com notifications</h2>
+      <p class="muted" style="font-size:0.85rem">Paste the brrr secret (or full URL) from the brrr.com app. Only enabled members get push notifications.</p>
+      <label class="field">
+        <span>brrr target</span>
+        <input id="brrr-secret" type="text" placeholder="secret or https://api.brrr.now/v1/…">
+      </label>
+      <div id="secret-preview" class="muted" style="font-size:0.85rem"></div>
+      <div class="row" style="margin-top:0.5rem">
+        <button id="save-notif" class="btn-primary" type="button">Save notifications</button>
+        <button id="clear-notif" class="btn-ghost" type="button">Clear secret</button>
+      </div>
+      <div id="notif-status" class="status"></div>
+    </section>
+
+    <section class="card">
+      <a href="." class="btn-ghost">← Back to today</a>
+    </section>
+  </div>
+
+  <script src="nav.js" defer></script>
+  <script src="settings.js" defer></script>
+</body>
+</html>

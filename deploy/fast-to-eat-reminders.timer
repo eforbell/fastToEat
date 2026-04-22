@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Fast to Eat reminders every 15 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+Unit=fast-to-eat-reminders.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

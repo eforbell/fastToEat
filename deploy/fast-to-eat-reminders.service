@@ -1,0 +1,11 @@
+[Unit]
+Description=Forbell Fast to Eat reminder runner
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+User=forbell
+WorkingDirectory=/data/apps/fastToEat
+EnvironmentFile=/data/apps/fastToEat/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /data/apps/fastToEat/scripts/send-reminders.js

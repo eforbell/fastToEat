@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f0f0f">
+  <title>Calendar · Fast to Eat</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="theme.js" defer></script>
+</head>
+<body data-nav-page="calendar">
+  <div id="app">
+    <header>
+      <h1 id="header-title">⭐ Calendar</h1>
+      <button data-theme-toggle class="btn-ghost" type="button">☀️</button>
+    </header>
+
+    <section class="card">
+      <div class="row" style="align-items:center">
+        <button id="prev-month">◀</button>
+        <strong id="month-label" class="grow" style="text-align:center"></strong>
+        <button id="next-month">▶</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="cal" id="cal"></div>
+      <div id="cal-status" class="status"></div>
+    </section>
+
+    <section class="card">
+      <a href="." class="btn-ghost">← Back to today</a>
+    </section>
+  </div>
+
+  <script src="nav.js" defer></script>
+  <script src="calendar.js" defer></script>
+</body>
+</html>

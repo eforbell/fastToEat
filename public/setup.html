@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f0f0f">
+  <title>Set up Fast to Eat</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="theme.js" defer></script>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>⏱️ Fast to Eat · Setup</h1>
+      <button data-theme-toggle class="btn-ghost" type="button">☀️</button>
+    </header>
+
+    <section class="card">
+      <h2>Welcome</h2>
+      <p class="muted">Create the household before anyone can start tracking fasts. Add a parent (and optional second parent / kids). You can tune plans per person later.</p>
+      <div id="setup-status" class="status">Checking setup state…</div>
+    </section>
+
+    <section class="card">
+      <h2>Household</h2>
+      <label class="field">
+        <span>Parent / you</span>
+        <input id="setup-parent-1" type="text" placeholder="Eric">
+      </label>
+      <label class="field">
+        <span>Second parent (optional)</span>
+        <input id="setup-parent-2" type="text" placeholder="Alex">
+      </label>
+      <label class="field">
+        <span>Kids (optional, one per line or comma-separated)</span>
+        <textarea id="setup-kids" rows="3" placeholder="Jordan&#10;Casey"></textarea>
+      </label>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <a href="." class="btn-ghost">Back</a>
+        <div class="grow"></div>
+        <button id="setup-submit" class="btn-primary" type="button">Create household</button>
+      </div>
+      <div id="setup-submit-status" class="status hidden"></div>
+    </section>
+  </div>
+
+  <script src="setup.js" defer></script>
+</body>
+</html>

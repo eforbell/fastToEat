@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fasttoeat
+      POSTGRES_PASSWORD: fasttoeat
+      POSTGRES_DB: fasttoeat
+    ports:
+      - "5437:5432"   # 5437 on host to avoid clashing with any existing local postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
