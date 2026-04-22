@@ -1,6 +1,6 @@
 # fastToEat
 
-Forbell family intermittent fasting tracker. Simple check-in / check-out for 16:8, 14:10, or 12:12 fasts; stars on consecutive days that meet the goal; optional brrr.com push notifications at window boundaries.
+family intermittent fasting tracker. Simple check-in / check-out for 16:8, 14:10, or 12:12 fasts; stars on consecutive days that meet the goal; optional brrr.com push notifications at window boundaries.
 
 ## Quick start
 
