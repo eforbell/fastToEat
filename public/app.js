@@ -10,6 +10,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('greeting').textContent = `⏱️ Hi, ${currentMember.name}`;
   document.getElementById('action-btn').addEventListener('click', handleAction);
+  document.getElementById('adjust-btn').addEventListener('click', openEditModal);
+  document.getElementById('edit-save').addEventListener('click', saveEditTimes);
+  document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
+  document.querySelectorAll('.adj-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.field);
+      if (!input.value) return;
+      const d = new Date(input.value);
+      d.setMinutes(d.getMinutes() + Number(btn.dataset.delta));
+      input.value = toLocalInputValue(d);
+    });
+  });
   document.getElementById('switch-user').addEventListener('click', () => {
     localStorage.removeItem('fte_member');
     window.location.replace('login');
@@ -64,15 +76,27 @@ function renderStatus() {
     btn.textContent = 'End fast';
     btn.dataset.mode = 'end';
   } else {
-    label.textContent = currentStatus.window.in_eat_window ? 'Eating window open' : 'Not fasting';
-    const nextBoundary = currentStatus.window.in_eat_window
-      ? new Date(currentStatus.window.eat_end)
-      : new Date(currentStatus.window.eat_start);
-    target.textContent = currentStatus.window.in_eat_window
-      ? `Eat window closes at ${formatLocalTime(nextBoundary, currentStatus.plan.timezone)} · Plan ${currentStatus.plan.plan}`
-      : `Next eat window opens at ${formatLocalTime(nextBoundary, currentStatus.plan.timezone)} · Plan ${currentStatus.plan.plan}`;
+    const w = currentStatus.window;
+    label.textContent = w.in_eat_window ? 'Eating window open' : 'Not fasting';
+    const nextBoundary = w.in_eat_window
+      ? new Date(w.eat_end)
+      : new Date(w.eat_start);
+    if (w.in_eat_window && w.is_shortened) {
+      target.textContent = `Shorter window today — great discipline! Closes at ${formatLocalTime(nextBoundary, currentStatus.plan.timezone)}`;
+    } else if (w.in_eat_window) {
+      target.textContent = `Eat window closes at ${formatLocalTime(nextBoundary, currentStatus.plan.timezone)} · Plan ${currentStatus.plan.plan}`;
+    } else {
+      target.textContent = `Next eat window opens at ${formatLocalTime(nextBoundary, currentStatus.plan.timezone)} · Plan ${currentStatus.plan.plan}`;
+    }
     btn.textContent = 'Start fast';
     btn.dataset.mode = 'start';
+  }
+
+  const adjustCard = document.getElementById('adjust-card');
+  if (currentStatus.open_session || currentStatus.last_session_today) {
+    adjustCard.classList.remove('hidden');
+  } else {
+    adjustCard.classList.add('hidden');
   }
 
   tick();
@@ -184,4 +208,78 @@ async function refreshLeaderboard() {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+}
+
+function toLocalInputValue(date) {
+  const y = date.getFullYear();
+  const mo = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const mi = String(date.getMinutes()).padStart(2, '0');
+  return `${y}-${mo}-${d}T${h}:${mi}`;
+}
+
+function openEditModal() {
+  const modal = document.getElementById('edit-modal');
+  const startInput = document.getElementById('edit-start');
+  const endInput = document.getElementById('edit-end');
+  const editStatus = document.getElementById('edit-status');
+  editStatus.textContent = '';
+  editStatus.classList.remove('error');
+
+  const session = currentStatus.open_session || currentStatus.last_session_today;
+  if (!session) return;
+
+  startInput.value = toLocalInputValue(new Date(session.started_at));
+  if (session.ended_at) {
+    endInput.value = toLocalInputValue(new Date(session.ended_at));
+    endInput.disabled = false;
+  } else {
+    endInput.value = '';
+    endInput.disabled = true;
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+}
+
+async function saveEditTimes() {
+  const session = currentStatus.open_session || currentStatus.last_session_today;
+  if (!session) return;
+
+  const saveBtn = document.getElementById('edit-save');
+  const editStatus = document.getElementById('edit-status');
+  saveBtn.disabled = true;
+  editStatus.textContent = '';
+  editStatus.classList.remove('error');
+
+  try {
+    const body = { member_id: currentMember.id };
+    const startVal = document.getElementById('edit-start').value;
+    const endVal = document.getElementById('edit-end').value;
+    if (startVal) body.started_at = new Date(startVal).toISOString();
+    if (endVal && !document.getElementById('edit-end').disabled) body.ended_at = new Date(endVal).toISOString();
+
+    const res = await fetch(`api/fast/${session.id}/times`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not save');
+
+    currentStatus = data.status;
+    renderStatus();
+    closeEditModal();
+    setStatus('Times adjusted.', false);
+    await refreshLeaderboard();
+  } catch (err) {
+    editStatus.textContent = err.message;
+    editStatus.classList.add('error');
+  } finally {
+    saveBtn.disabled = false;
+  }
 }

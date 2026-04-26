@@ -76,6 +76,7 @@ deploy/
 | GET/PUT | `/api/me/:id/plan` | 16:8 / 14:10 / 12:12 + eat-window start + timezone |
 | POST | `/api/fast/start` | open a fast_session |
 | POST | `/api/fast/end` | close it, compute met_goal, upsert daily_fast_log |
+| PUT | `/api/fast/:sessionId/times` | edit start/end timestamps, recompute met_goal + daily_fast_log |
 | GET | `/api/me/:id/calendar?month=YYYY-MM` | per-day star data |
 | GET | `/api/me/:id/streak` | `{ current, longest, last_met_date }` |
 | GET | `/api/family/leaderboard` | `{ name, current_streak }[]` sorted desc |

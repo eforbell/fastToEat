@@ -12,7 +12,7 @@ const {
   isValidTimeOfDay,
   localDateStringInTimezone,
 } = require('./lib/date-utils');
-const { PLAN_HOURS, currentWindow, planHours } = require('./lib/fast-windows');
+const { PLAN_HOURS, currentWindow, effectiveWindow, planHours } = require('./lib/fast-windows');
 const { computeStreak } = require('./lib/streaks');
 const { maskSecret } = require('./lib/notifications');
 
@@ -213,7 +213,7 @@ app.put('/api/me/:id/plan', async (req, res) => {
     const memberId = Number(req.params.id);
     if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).json({ error: 'bad id' });
     const { plan, eat_window_start_local, timezone, reminders_enabled } = req.body || {};
-    if (plan && !PLAN_HOURS[plan]) return res.status(400).json({ error: 'plan must be 16:8 | 14:10 | 12:12' });
+    if (plan && !PLAN_HOURS[plan]) return res.status(400).json({ error: 'plan must be 18:6 | 16:8 | 14:10 | 12:12' });
     if (eat_window_start_local && !isValidTimeOfDay(eat_window_start_local)) return res.status(400).json({ error: 'bad time' });
     await ensurePlan(pool, memberId);
     const { rows } = await pool.query(
@@ -237,7 +237,6 @@ app.put('/api/me/:id/plan', async (req, res) => {
 
 async function loadStatus(memberId, now = new Date()) {
   const plan = await ensurePlan(pool, memberId);
-  const window = currentWindow(plan.plan, plan.eat_window_start_local, plan.timezone, now);
 
   const { rows: openRows } = await pool.query(
     `SELECT id, started_at, planned_duration_hours
@@ -246,6 +245,30 @@ async function loadStatus(memberId, now = new Date()) {
     [memberId]
   );
   const openSession = openRows[0] || null;
+
+  let lastEndedAt = null;
+  let lastSessionToday = null;
+  if (!openSession) {
+    const { rows: endedRows } = await pool.query(
+      `SELECT id, started_at, ended_at, planned_duration_hours
+         FROM fast_sessions
+         WHERE member_id = $1 AND ended_at IS NOT NULL
+         ORDER BY ended_at DESC LIMIT 1`,
+      [memberId]
+    );
+    if (endedRows[0]) {
+      lastEndedAt = new Date(endedRows[0].ended_at);
+      const todayDate = localDateStringInTimezone(now, plan.timezone);
+      if (localDateStringInTimezone(lastEndedAt, plan.timezone) === todayDate) {
+        lastSessionToday = endedRows[0];
+      }
+    }
+  }
+
+  const window = effectiveWindow(plan.plan, plan.eat_window_start_local, plan.timezone, now, lastEndedAt);
+  const { eat: plannedEatHours } = planHours(plan.plan);
+  const effectiveEatHours = (window.eatEnd.getTime() - window.eatStart.getTime()) / 3600000;
+  const shortenedBy = Math.max(0, plannedEatHours - effectiveEatHours);
 
   const streak = await computeStreak(pool, memberId, plan.timezone, now);
 
@@ -261,11 +284,21 @@ async function loadStatus(memberId, now = new Date()) {
       fast_end: window.fastEnd.toISOString(),
       in_eat_window: window.inEatWindow,
       in_fast_window: window.inFastWindow,
+      effective_eat_hours: Number(effectiveEatHours.toFixed(2)),
+      planned_eat_hours: plannedEatHours,
+      shortened_by_hours: Number(shortenedBy.toFixed(2)),
+      is_shortened: shortenedBy > 0.01,
     },
     open_session: openSession ? {
       id: openSession.id,
       started_at: openSession.started_at,
       planned_duration_hours: Number(openSession.planned_duration_hours),
+    } : null,
+    last_session_today: lastSessionToday ? {
+      id: lastSessionToday.id,
+      started_at: lastSessionToday.started_at,
+      ended_at: lastSessionToday.ended_at,
+      planned_duration_hours: Number(lastSessionToday.planned_duration_hours),
     } : null,
     streak,
   };
@@ -364,6 +397,113 @@ app.post('/api/fast/end', async (req, res) => {
   } catch (err) {
     const code = err.statusCode || 500;
     res.status(code).json({ error: err.message, code: err.code });
+  }
+});
+
+// ── Edit fast times ─────────────────────────────────────────
+
+app.put('/api/fast/:sessionId/times', async (req, res) => {
+  try {
+    const sessionId = Number(req.params.sessionId);
+    if (!Number.isInteger(sessionId) || sessionId <= 0) return res.status(400).json({ error: 'bad sessionId' });
+    const memberId = Number(req.body?.member_id);
+    if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).json({ error: 'bad member_id' });
+
+    const newStartedAt = req.body.started_at ? new Date(req.body.started_at) : null;
+    const newEndedAt = req.body.ended_at ? new Date(req.body.ended_at) : null;
+    if (newStartedAt && isNaN(newStartedAt.getTime())) return res.status(400).json({ error: 'invalid started_at' });
+    if (newEndedAt && isNaN(newEndedAt.getTime())) return res.status(400).json({ error: 'invalid ended_at' });
+
+    const now = new Date();
+    if (newStartedAt && newStartedAt > now) return res.status(400).json({ error: 'started_at cannot be in the future' });
+    if (newEndedAt && newEndedAt > now) return res.status(400).json({ error: 'ended_at cannot be in the future' });
+
+    const result = await withTransaction(async client => {
+      const { rows } = await client.query(
+        `SELECT id, member_id, started_at, ended_at, planned_duration_hours,
+                original_started_at, original_ended_at
+           FROM fast_sessions WHERE id = $1 FOR UPDATE`,
+        [sessionId]
+      );
+      const session = rows[0];
+      if (!session) return res.status(404).json({ error: 'session not found' });
+      if (session.member_id !== memberId) return res.status(403).json({ error: 'session belongs to another member' });
+
+      const isOpen = session.ended_at === null;
+      if (isOpen && newEndedAt) return res.status(400).json({ error: 'cannot set ended_at on an open session' });
+
+      const effectiveStart = newStartedAt || new Date(session.started_at);
+      const effectiveEnd = newEndedAt || (session.ended_at ? new Date(session.ended_at) : null);
+
+      if (effectiveEnd && effectiveStart >= effectiveEnd) {
+        return res.status(400).json({ error: 'started_at must be before ended_at' });
+      }
+      if (effectiveEnd) {
+        const durationH = (effectiveEnd.getTime() - effectiveStart.getTime()) / 3600000;
+        if (durationH > 72) return res.status(400).json({ error: 'duration exceeds 72h limit' });
+      }
+
+      const origStart = session.original_started_at || session.started_at;
+      const origEnd = session.original_ended_at || session.ended_at;
+
+      const plan = await ensurePlan(client, memberId);
+
+      if (effectiveEnd) {
+        const actualHours = (effectiveEnd.getTime() - effectiveStart.getTime()) / 3600000;
+        const planned = Number(session.planned_duration_hours);
+        const metGoal = actualHours >= planned;
+
+        const { rows: updated } = await client.query(
+          `UPDATE fast_sessions SET
+             started_at = $2, ended_at = $3,
+             actual_duration_hours = $4, met_goal = $5,
+             original_started_at = COALESCE(original_started_at, $6),
+             original_ended_at = COALESCE(original_ended_at, $7),
+             edited_at = NOW()
+           WHERE id = $1
+           RETURNING id, started_at, ended_at, planned_duration_hours, actual_duration_hours, met_goal`,
+          [sessionId, effectiveStart, effectiveEnd,
+           Number(actualHours.toFixed(2)), metGoal, origStart, origEnd]
+        );
+
+        const oldLogDate = localDateStringInTimezone(new Date(session.ended_at), plan.timezone);
+        const newLogDate = localDateStringInTimezone(effectiveEnd, plan.timezone);
+
+        if (oldLogDate !== newLogDate) {
+          await client.query(
+            `DELETE FROM daily_fast_log WHERE member_id = $1 AND log_date = $2 AND session_id = $3`,
+            [memberId, oldLogDate, sessionId]
+          );
+        }
+
+        await client.query(
+          `INSERT INTO daily_fast_log (member_id, log_date, session_id, met_goal)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (member_id, log_date)
+             DO UPDATE SET session_id = EXCLUDED.session_id,
+                           met_goal = daily_fast_log.met_goal OR EXCLUDED.met_goal`,
+          [memberId, newLogDate, sessionId, metGoal]
+        );
+
+        return updated[0];
+      } else {
+        const { rows: updated } = await client.query(
+          `UPDATE fast_sessions SET
+             started_at = $2,
+             original_started_at = COALESCE(original_started_at, $3),
+             edited_at = NOW()
+           WHERE id = $1
+           RETURNING id, started_at, ended_at, planned_duration_hours`,
+          [sessionId, effectiveStart, origStart]
+        );
+        return updated[0];
+      }
+    });
+
+    if (res.headersSent) return;
+    res.json({ ok: true, session: result, status: await loadStatus(memberId) });
+  } catch (err) {
+    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
 

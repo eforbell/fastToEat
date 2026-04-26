@@ -20,18 +20,28 @@
       <label class="field">
         <span>Goal</span>
         <select id="plan">
-          <option value="16:8">16:8 — 16h fast / 8h eat</option>
-          <option value="14:10">14:10 — 14h fast / 10h eat</option>
           <option value="12:12">12:12 — 12h fast / 12h eat</option>
+          <option value="14:10">14:10 — 14h fast / 10h eat</option>
+          <option value="16:8">16:8 — 16h fast / 8h eat</option>
+          <option value="18:6">18:6 — 18h fast / 6h eat</option>
         </select>
+        <p class="muted" style="font-size:0.8rem;margin-top:0.25rem">New to fasting? Start with 12:12 or 14:10 and work up.</p>
       </label>
       <label class="field">
         <span>Eating window starts at</span>
         <input id="eat-start" type="time">
       </label>
       <label class="field">
-        <span>Timezone (IANA)</span>
-        <input id="timezone" type="text" placeholder="America/Los_Angeles">
+        <span>Timezone</span>
+        <select id="timezone">
+          <option value="Pacific/Honolulu">Hawaii (HST)</option>
+          <option value="America/Anchorage">Alaska (AKST)</option>
+          <option value="America/Los_Angeles">Pacific (PST)</option>
+          <option value="America/Denver">Mountain (MST)</option>
+          <option value="America/Phoenix">Arizona (MST, no DST)</option>
+          <option value="America/Chicago">Central (CST)</option>
+          <option value="America/New_York">Eastern (EST)</option>
+        </select>
       </label>
       <label class="field" style="flex-direction:row; display:flex; align-items:center; gap:0.5rem">
         <input id="reminders-enabled" type="checkbox" style="width:auto">

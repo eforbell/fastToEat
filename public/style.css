@@ -266,6 +266,56 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .board-row .name { flex: 1; font-weight: 500; }
 .board-row .streak { color: var(--accent); font-weight: 600; }
 
+/* ── Edit modal ──────────────────────────────────────── */
+
+.modal-overlay {
+  align-items: center;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 480px;
+  padding: 1.5rem;
+  width: calc(100% - 2rem);
+}
+
+.modal h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.adjust-row {
+  align-items: center;
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.adjust-row input[type="datetime-local"] {
+  flex: 1;
+  min-width: 160px;
+}
+
+.adj-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.4rem;
+}
+.adj-btn:hover { border-color: var(--accent); color: var(--text); }
+
 /* ── Nav (simple bottom bar) ─────────────────────────── */
 
 .nav {

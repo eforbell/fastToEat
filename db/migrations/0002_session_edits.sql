@@ -1,0 +1,3 @@
+ALTER TABLE fast_sessions ADD COLUMN IF NOT EXISTS original_started_at TIMESTAMPTZ;
+ALTER TABLE fast_sessions ADD COLUMN IF NOT EXISTS original_ended_at TIMESTAMPTZ;
+ALTER TABLE fast_sessions ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;

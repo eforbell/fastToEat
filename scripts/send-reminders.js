@@ -95,7 +95,8 @@ function evaluateCandidates(member, now) {
   }
 
   // "fast complete" — fires once at/after planned fast end
-  if (window.inFastWindow) {
+  // Note: inFastWindow is false at fastEnd, so we check timing directly without a window guard.
+  {
     const minsPastEnd = -minutesBetween(window.fastEnd, now); // positive if we've passed fastEnd
     if (minsPastEnd >= 0 && minsPastEnd <= WINDOW_EDGE_MINUTES) {
       candidates.push({

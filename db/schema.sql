@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS member_notification_channels (
 
 CREATE TABLE IF NOT EXISTS fast_plans (
   member_id              INTEGER PRIMARY KEY REFERENCES family_members(id) ON DELETE CASCADE,
-  plan                   TEXT NOT NULL CHECK (plan IN ('16:8', '14:10', '12:12')),
+  plan                   TEXT NOT NULL CHECK (plan IN ('18:6', '16:8', '14:10', '12:12')),
   eat_window_start_local TIME NOT NULL DEFAULT '12:00',
   timezone               TEXT NOT NULL DEFAULT 'America/Los_Angeles',
   reminders_enabled      BOOLEAN NOT NULL DEFAULT TRUE,
@@ -45,6 +45,9 @@ CREATE TABLE IF NOT EXISTS fast_sessions (
   actual_duration_hours   NUMERIC(5,2),
   met_goal                BOOLEAN,
   break_meal_note         TEXT,
+  original_started_at     TIMESTAMPTZ,
+  original_ended_at       TIMESTAMPTZ,
+  edited_at               TIMESTAMPTZ,
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_fast_sessions_member_started

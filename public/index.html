@@ -28,6 +28,45 @@
       <div id="action-status" class="status"></div>
     </section>
 
+    <section class="card hidden" id="adjust-card">
+      <button id="adjust-btn" class="btn-ghost" type="button">✏️ Adjust time</button>
+    </section>
+
+    <div id="edit-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <h2>Adjust fast times</h2>
+        <label class="field">
+          <span>Start</span>
+          <div class="adjust-row">
+            <button class="adj-btn" data-field="edit-start" data-delta="-30">-30m</button>
+            <button class="adj-btn" data-field="edit-start" data-delta="-15">-15m</button>
+            <button class="adj-btn" data-field="edit-start" data-delta="-5">-5m</button>
+            <input type="datetime-local" id="edit-start" step="60">
+            <button class="adj-btn" data-field="edit-start" data-delta="5">+5m</button>
+            <button class="adj-btn" data-field="edit-start" data-delta="15">+15m</button>
+            <button class="adj-btn" data-field="edit-start" data-delta="30">+30m</button>
+          </div>
+        </label>
+        <label class="field">
+          <span>End</span>
+          <div class="adjust-row">
+            <button class="adj-btn" data-field="edit-end" data-delta="-30">-30m</button>
+            <button class="adj-btn" data-field="edit-end" data-delta="-15">-15m</button>
+            <button class="adj-btn" data-field="edit-end" data-delta="-5">-5m</button>
+            <input type="datetime-local" id="edit-end" step="60">
+            <button class="adj-btn" data-field="edit-end" data-delta="5">+5m</button>
+            <button class="adj-btn" data-field="edit-end" data-delta="15">+15m</button>
+            <button class="adj-btn" data-field="edit-end" data-delta="30">+30m</button>
+          </div>
+        </label>
+        <div id="edit-status" class="status"></div>
+        <div class="row" style="margin-top:1rem">
+          <button id="edit-save" class="btn-primary" type="button">Save</button>
+          <button id="edit-cancel" class="btn-ghost" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <section class="card" id="break-meal-card">
       <h2>Break-meal note (optional)</h2>
       <label class="field">
