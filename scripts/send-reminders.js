@@ -9,7 +9,8 @@ const {
   sendBrrrNotification,
   buildNotificationOpenUrl,
 } = require('../lib/notifications');
-const { currentWindow, planHours } = require('../lib/fast-windows');
+const { effectiveWindow, planHours } = require('../lib/fast-windows');
+const { localDateStringInTimezone } = require('../lib/date-utils');
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const WINDOW_EDGE_MINUTES = Number(process.env.REMINDER_EDGE_MINUTES || 15);
@@ -24,16 +25,26 @@ async function appConfig(key) {
   return rows[0]?.value ?? null;
 }
 
-async function loadEligibleMembers() {
+async function loadEligibleMembers(now) {
   const { rows } = await pool.query(`
     SELECT fm.id AS member_id, fm.name,
            fp.plan, to_char(fp.eat_window_start_local, 'HH24:MI') AS eat_window_start_local,
            fp.timezone, fp.reminders_enabled,
-           mnc.target_secret, mnc.enabled AS notif_enabled
+           mnc.target_secret, mnc.enabled AS notif_enabled,
+           os.started_at AS open_session_started_at,
+           os.planned_duration_hours AS open_session_planned_hours,
+           ls.ended_at AS last_ended_at
       FROM family_members fm
       JOIN fast_plans fp ON fp.member_id = fm.id
       LEFT JOIN member_notification_channels mnc
         ON mnc.member_id = fm.id AND mnc.channel_type = 'brrr'
+      LEFT JOIN fast_sessions os
+        ON os.member_id = fm.id AND os.ended_at IS NULL
+      LEFT JOIN LATERAL (
+        SELECT ended_at FROM fast_sessions
+        WHERE member_id = fm.id AND ended_at IS NOT NULL
+        ORDER BY ended_at DESC LIMIT 1
+      ) ls ON TRUE
       WHERE fp.reminders_enabled = TRUE
         AND mnc.enabled = TRUE
         AND mnc.target_secret IS NOT NULL
@@ -73,11 +84,12 @@ async function upsertEventState(memberId, eventType, sourceKey, { status, sent, 
 function minutesBetween(a, b) { return Math.round((a.getTime() - b.getTime()) / 60000); }
 
 function evaluateCandidates(member, now) {
-  const window = currentWindow(member.plan, member.eat_window_start_local, member.timezone, now);
+  const lastEndedAt = member.last_ended_at ? new Date(member.last_ended_at) : null;
+  const window = effectiveWindow(member.plan, member.eat_window_start_local, member.timezone, now, lastEndedAt);
   const { fast } = planHours(member.plan);
   const candidates = [];
 
-  // "eat window closing soon" — fires when we're inside the eat window and eat_end is ≤ edge minutes away
+  // "eat window closing soon" — uses effective window (accounts for early fast breaks)
   if (window.inEatWindow) {
     const minsToClose = minutesBetween(window.eatEnd, now);
     if (minsToClose >= 0 && minsToClose <= WINDOW_EDGE_MINUTES) {
@@ -94,17 +106,20 @@ function evaluateCandidates(member, now) {
     }
   }
 
-  // "fast complete" — fires once at/after planned fast end
-  // Note: inFastWindow is false at fastEnd, so we check timing directly without a window guard.
-  {
-    const minsPastEnd = -minutesBetween(window.fastEnd, now); // positive if we've passed fastEnd
+  // "fast complete" — fires when an active fast reaches its planned duration
+  if (member.open_session_started_at) {
+    const startedAt = new Date(member.open_session_started_at);
+    const plannedHours = Number(member.open_session_planned_hours);
+    const fastTargetEnd = new Date(startedAt.getTime() + plannedHours * 3600 * 1000);
+    const minsPastEnd = minutesBetween(now, fastTargetEnd);
     if (minsPastEnd >= 0 && minsPastEnd <= WINDOW_EDGE_MINUTES) {
+      const sourceKey = localDateStringInTimezone(now, member.timezone);
       candidates.push({
         event_type: 'fast_complete',
-        source_key: window.todayLocalDate,
+        source_key: sourceKey,
         payload: {
           title: '⭐ Fast complete',
-          message: `Your ${fast}h fast just ended — open the app to log the break meal.`,
+          message: `Your ${plannedHours}h fast just ended — open the app to log the break meal.`,
           interruption_level: 'active',
           ...(APP_PUBLIC_URL ? { url: buildNotificationOpenUrl(APP_PUBLIC_URL) } : {}),
         },
@@ -124,7 +139,7 @@ async function main() {
     return;
   }
 
-  const members = await loadEligibleMembers();
+  const members = await loadEligibleMembers(now);
   if (!members.length) {
     console.log('No members with enabled brrr channels.');
     return;
