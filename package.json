@@ -1,7 +1,7 @@
 {
   "name": "fast-to-eat",
   "version": "1.0.0",
-  "description": "Forbell family intermittent fasting tracker — check-ins, streaks, eating-window reminders.",
+  "description": "Family intermittent fasting tracker — check-ins, streaks, eating-window reminders.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Parent-oriented intermittent fasting tracker for the Forbell household. Each member picks a daily goal (16:8, 14:10, 12:12), checks in when their fast starts, checks out when they break it, and earns stars on consecutive days that meet the goal. Simple brrr.com notifications nudge at the start and end of the eating window. No ads, no medical advice, no nutrition tracking beyond an optional free-text break-meal note.
+Parent-oriented intermittent fasting tracker for your household. Each member picks a daily goal (16:8, 14:10, 12:12), checks in when their fast starts, checks out when they break it, and earns stars on consecutive days that meet the goal. Simple brrr.com notifications nudge at the start and end of the eating window. No ads, no medical advice, no nutrition tracking beyond an optional free-text break-meal note.
 
 Companion to the other "family*" apps (familyPulse, familyPlan, familyDinner) — same Node/Express/Postgres shape, same `family_members` + `app_config` conventions, same browser-driven household bootstrap.
 
