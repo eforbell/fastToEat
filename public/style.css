@@ -222,7 +222,9 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .cal {
   display: grid;
   gap: 0.35rem;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  overflow-x: clip;
+  width: 100%;
 }
 
 .cal .dow {
@@ -247,8 +249,10 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   font-size: 0.8rem;
   font: inherit;
   justify-content: center;
+  min-width: 0;
   padding: 0.25rem;
   text-align: center;
+  width: 100%;
 }
 .cal .day.met { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
 .cal .day.super { background: rgba(250, 204, 21, 0.16); border-color: #facc15; color: var(--text); }
