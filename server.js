@@ -12,6 +12,7 @@ const {
   isValidTimeOfDay,
   localDateStringInTimezone,
 } = require('./lib/date-utils');
+const { buildCalendarDays } = require('./lib/calendar-days');
 const { PLAN_HOURS, currentWindow, effectiveWindow, planHours } = require('./lib/fast-windows');
 const { computeStreak } = require('./lib/streaks');
 const { maskSecret } = require('./lib/notifications');
@@ -526,11 +527,26 @@ app.get('/api/me/:id/calendar', async (req, res) => {
          WHERE member_id = $1 AND log_date >= $2::date AND log_date <= $3::date`,
       [memberId, first, last]
     );
-    const byDate = new Map(rows.map(r => [r.log_date, r.met_goal]));
+    const { rows: sessionRows } = await pool.query(
+      `SELECT to_char((ended_at AT TIME ZONE $4), 'YYYY-MM-DD') AS local_date,
+              ended_at,
+              planned_duration_hours,
+              actual_duration_hours,
+              met_goal,
+              break_meal_note
+         FROM fast_sessions
+        WHERE member_id = $1
+          AND ended_at IS NOT NULL
+          AND to_char((ended_at AT TIME ZONE $4), 'YYYY-MM-DD') >= $2
+          AND to_char((ended_at AT TIME ZONE $4), 'YYYY-MM-DD') <= $3
+        ORDER BY ended_at DESC`,
+      [memberId, first, last, plan.timezone]
+    );
+
     res.json({
       month,
       timezone: plan.timezone,
-      days: days.map(date => ({ date, met_goal: byDate.has(date) ? Boolean(byDate.get(date)) : null })),
+      days: buildCalendarDays(days, rows, sessionRows),
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -650,6 +666,10 @@ app.get('/login', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'lo
 app.get('/calendar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'calendar.html')));
 app.get('/settings', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'settings.html')));
 
-app.listen(PORT, () => {
-  console.log(`fast-to-eat listening on http://127.0.0.1:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`fast-to-eat listening on http://127.0.0.1:${PORT}`);
+  });
+}
+
+module.exports = { app };

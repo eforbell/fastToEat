@@ -30,6 +30,43 @@
       <div id="cal-status" class="status"></div>
     </section>
 
+    <section class="card" id="day-detail-card">
+      <div class="row" style="align-items:center;gap:0.75rem">
+        <div class="grow">
+          <div class="muted" style="font-size:0.78rem">Selected day</div>
+          <strong id="day-detail-title">Tap a day to inspect</strong>
+        </div>
+        <span id="day-detail-badge" class="day-detail-badge hidden"></span>
+      </div>
+      <p id="day-detail-empty" class="muted day-detail-empty">
+        Tap any starred day to see fast length, over-goal streak strength, and any break-meal note.
+      </p>
+      <div id="day-detail-body" class="day-detail-body hidden">
+        <div class="day-detail-grid">
+          <div class="day-detail-item">
+            <span class="label">Actual fast</span>
+            <strong id="day-detail-actual">—</strong>
+          </div>
+          <div class="day-detail-item">
+            <span class="label">Goal</span>
+            <strong id="day-detail-goal">—</strong>
+          </div>
+          <div class="day-detail-item">
+            <span class="label">Over goal</span>
+            <strong id="day-detail-over">—</strong>
+          </div>
+          <div class="day-detail-item">
+            <span class="label">Ended</span>
+            <strong id="day-detail-ended">—</strong>
+          </div>
+        </div>
+        <div id="day-detail-note-wrap" class="day-detail-note-wrap hidden">
+          <span class="label">Break-meal note</span>
+          <div id="day-detail-note" class="day-detail-note"></div>
+        </div>
+      </div>
+    </section>
+
     <section class="card">
       <a href="." class="btn-ghost">← Back to today</a>
     </section>
