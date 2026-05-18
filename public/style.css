@@ -35,14 +35,6 @@
 }
 
 html { font-size: 16px; }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  min-height: 100dvh;
-  padding-bottom: env(safe-area-inset-bottom, 1rem);
-}
-
 #app {
   margin: 0 auto;
   max-width: 680px;
@@ -68,78 +60,6 @@ header h1 {
 .hidden { display: none !important; }
 .grow { flex: 1; }
 
-/* ── Cards & forms ────────────────────────────────────── */
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem 1.15rem;
-  margin-bottom: 1rem;
-}
-
-.card h2 {
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.field { display: block; margin: 0.5rem 0; }
-.field > span {
-  color: var(--muted);
-  display: block;
-  font-size: 0.85rem;
-  margin-bottom: 0.25rem;
-}
-.field input, .field select, .field textarea {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font-size: 1rem;
-  padding: 0.55rem 0.7rem;
-  width: 100%;
-}
-.field input:focus, .field select:focus, .field textarea:focus {
-  border-color: var(--accent);
-  outline: none;
-}
-
-.row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-
-button, .btn {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 500;
-  padding: 0.6rem 1rem;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-button:hover { background: var(--accent-soft); border-color: var(--accent); }
-button:disabled { cursor: not-allowed; opacity: 0.5; }
-
-.btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #0b1d29;
-}
-.btn-primary:hover { background: var(--accent-dk); border-color: var(--accent-dk); color: #fff; }
-
-.btn-ghost {
-  background: transparent;
-  color: var(--muted);
-  padding: 0.5rem 0.75rem;
-  text-decoration: none;
-}
-
-.status { color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem; }
-.status.error { color: var(--red); }
 
 /* ── Today / fast ui ─────────────────────────────────── */
 

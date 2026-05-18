@@ -1,0 +1,21 @@
+/* Sovereign tokens — fastToEat */
+:root {
+  --font-display: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --accent: #3FAF7A;
+  --accent-pale: rgba(63, 175, 122, 0.18);
+  --accent-wash: rgba(63, 175, 122, 0.05);
+  --accent-soft: rgba(63, 175, 122, 0.1);
+  --accent-soft-strong: rgba(63, 175, 122, 0.18);
+  --accent-border-soft: rgba(63, 175, 122, 0.28);
+  --accent-dk: #0284c7;
+}
+
+:root[data-theme="light"] {
+  --accent: #2F855C;
+  --accent-pale: rgba(47, 133, 92, 0.18);
+  --accent-wash: rgba(47, 133, 92, 0.06);
+  --accent-soft: rgba(47, 133, 92, 0.1);
+  --accent-soft-strong: rgba(47, 133, 92, 0.18);
+  --accent-border-soft: rgba(47, 133, 92, 0.28);
+  --accent-dk: #075985;
+}
