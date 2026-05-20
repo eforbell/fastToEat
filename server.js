@@ -509,7 +509,10 @@ app.put('/api/fast/:sessionId/times', async (req, res) => {
              VALUES ($1, $2, $3, $4)
              ON CONFLICT (member_id, log_date)
              DO UPDATE SET session_id = EXCLUDED.session_id,
-                           met_goal = daily_fast_log.met_goal OR EXCLUDED.met_goal`,
+                           met_goal = CASE
+                             WHEN daily_fast_log.session_id = EXCLUDED.session_id THEN EXCLUDED.met_goal
+                             ELSE daily_fast_log.met_goal OR EXCLUDED.met_goal
+                           END`,
           [memberId, newLogDate, sessionId, metGoal]
         );
 
