@@ -310,3 +310,32 @@ header h1 {
 }
 .nav a.active { color: var(--accent); }
 .nav a .icon { font-size: 1.1rem; line-height: 1; }
+
+.nav-more-menu {
+  position: fixed;
+  right: 0.75rem;
+  bottom: calc(4.2rem + env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  min-width: 180px;
+  overflow: hidden;
+  z-index: 80;
+}
+.nav-more-menu a {
+  color: var(--text);
+  padding: 0.7rem 0.8rem;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+.nav-more-menu a:last-child { border-bottom: 0; }
+
+.weight-chart {
+  width: 100%;
+  height: auto;
+  margin-top: 0.75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}

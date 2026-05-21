@@ -227,6 +227,18 @@ async function ensurePlan(client, memberId) {
   return inserted.rows[0];
 }
 
+async function weightGoalForMember(client, memberId) {
+  const { rows } = await client.query(
+    `SELECT goal_type, goal_weight_lbs, weekly_checkin_day,
+            to_char(weekly_checkin_time_local, 'HH24:MI') AS weekly_checkin_time_local,
+            weekly_reminder_enabled
+       FROM member_weight_preferences
+      WHERE member_id = $1`,
+    [memberId]
+  );
+  return rows[0] || null;
+}
+
 app.get('/api/me/:id/plan', async (req, res) => {
   try {
     const memberId = Number(req.params.id);
@@ -258,6 +270,100 @@ app.put('/api/me/:id/plan', async (req, res) => {
        typeof reminders_enabled === 'boolean' ? reminders_enabled : null]
     );
     res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/me/:id/weight-goal', async (req, res) => {
+  try {
+    const memberId = Number(req.params.id);
+    if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).json({ error: 'bad id' });
+    const goal = await weightGoalForMember(pool, memberId);
+    res.json({ configured: Boolean(goal), goal });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/me/:id/weight-goal', async (req, res) => {
+  try {
+    const memberId = Number(req.params.id);
+    if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).json({ error: 'bad id' });
+    const goalType = String(req.body?.goal_type || '').trim();
+    if (!['lose', 'maintain', 'gain'].includes(goalType)) {
+      return res.status(400).json({ error: 'goal_type must be lose | maintain | gain' });
+    }
+    const goalWeight = req.body?.goal_weight_lbs == null || req.body?.goal_weight_lbs === ''
+      ? null
+      : Number(req.body.goal_weight_lbs);
+    if (goalWeight != null && (!Number.isFinite(goalWeight) || goalWeight <= 0 || goalWeight > 1000)) {
+      return res.status(400).json({ error: 'goal_weight_lbs must be a positive number <= 1000' });
+    }
+    const weeklyCheckinDay = req.body?.weekly_checkin_day == null ? 1 : Number(req.body.weekly_checkin_day);
+    if (!Number.isInteger(weeklyCheckinDay) || weeklyCheckinDay < 0 || weeklyCheckinDay > 6) {
+      return res.status(400).json({ error: 'weekly_checkin_day must be 0..6 (Sun..Sat)' });
+    }
+    const weeklyCheckinTime = String(req.body?.weekly_checkin_time_local || '08:00');
+    if (!isValidTimeOfDay(weeklyCheckinTime)) {
+      return res.status(400).json({ error: 'weekly_checkin_time_local must be HH:MM' });
+    }
+    const weeklyReminderEnabled = req.body?.weekly_reminder_enabled !== false;
+
+    await pool.query(
+      `INSERT INTO member_weight_preferences
+        (member_id, goal_type, goal_weight_lbs, weekly_checkin_day, weekly_checkin_time_local, weekly_reminder_enabled, updated_at)
+       VALUES ($1, $2, $3, $4, $5::time, $6, NOW())
+       ON CONFLICT (member_id)
+       DO UPDATE SET
+         goal_type = EXCLUDED.goal_type,
+         goal_weight_lbs = EXCLUDED.goal_weight_lbs,
+         weekly_checkin_day = EXCLUDED.weekly_checkin_day,
+         weekly_checkin_time_local = EXCLUDED.weekly_checkin_time_local,
+         weekly_reminder_enabled = EXCLUDED.weekly_reminder_enabled,
+         updated_at = NOW()`,
+      [memberId, goalType, goalWeight, weeklyCheckinDay, weeklyCheckinTime, weeklyReminderEnabled]
+    );
+
+    const goal = await weightGoalForMember(pool, memberId);
+    res.json({ configured: true, goal });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/me/:id/weight-checkins', async (req, res) => {
+  try {
+    const memberId = Number(req.params.id);
+    if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).json({ error: 'bad id' });
+    const weight = Number(req.body?.weight_lbs);
+    if (!Number.isFinite(weight) || weight <= 0 || weight > 1000) {
+      return res.status(400).json({ error: 'weight_lbs must be a positive number <= 1000' });
+    }
+    const source = req.body?.source === 'reminder' ? 'reminder' : 'manual';
+    const note = req.body?.note ? String(req.body.note).slice(0, 200) : null;
+    const measuredAt = req.body?.measured_at ? new Date(req.body.measured_at) : new Date();
+    if (Number.isNaN(measuredAt.getTime())) return res.status(400).json({ error: 'invalid measured_at' });
+
+    const { rows } = await pool.query(
+      `INSERT INTO weight_checkins (member_id, measured_at, source, weight_lbs, note)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, member_id, measured_at, source, weight_lbs, note`,
+      [memberId, measuredAt, source, Number(weight.toFixed(2)), note]
+    );
+    res.status(201).json({ ok: true, checkin: rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/me/:id/weight-checkins', async (req, res) => {
+  try {
+    const memberId = Number(req.params.id);
+    if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).json({ error: 'bad id' });
+    const range = String(req.query.range || '30d');
+    const windowDays = range === 'quarter' ? 92 : 30;
+    const { rows } = await pool.query(
+      `SELECT id, measured_at, source, weight_lbs, note
+         FROM weight_checkins
+        WHERE member_id = $1
+          AND measured_at >= (NOW() - ($2::text || ' days')::interval)
+        ORDER BY measured_at ASC`,
+      [memberId, windowDays]
+    );
+    res.json({ range, window_days: windowDays, checkins: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -694,6 +800,7 @@ app.get('/setup', async (_req, res) => {
 
 app.get('/login', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/calendar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'calendar.html')));
+app.get('/progress', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'progress.html')));
 app.get('/settings', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'settings.html')));
 
 if (require.main === module) {

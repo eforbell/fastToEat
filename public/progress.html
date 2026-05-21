@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f0f0f">
+  <title>Progress · Fast to Eat ⏱️</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="favicon.ico" sizes="any">
+  <link rel="stylesheet" href="sovereign-fonts.css">
+  <link rel="stylesheet" href="sovereign-chassis.css">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="eat-skin.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="theme.js" defer></script>
+</head>
+<body data-nav-page="progress">
+  <div id="app">
+    <header>
+      <h1>⚖️ Weight progress</h1>
+      <button data-theme-toggle class="btn-ghost" type="button">☀️</button>
+    </header>
+
+    <section class="card" id="goal-card">
+      <h2>Goal setup</h2>
+      <label class="field"><span>Goal</span>
+        <select id="goal-type">
+          <option value="lose">Lose weight</option>
+          <option value="maintain">Maintain weight</option>
+          <option value="gain">Gain weight</option>
+        </select>
+      </label>
+      <label class="field"><span>Target weight (lbs, optional)</span><input id="goal-weight" type="number" step="0.1" min="1" max="1000"></label>
+      <label class="field"><span>Weekly reminder day</span>
+        <select id="checkin-day"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select>
+      </label>
+      <label class="field"><span>Reminder time</span><input id="checkin-time" type="time" value="08:00"></label>
+      <button id="save-goal" class="btn-primary" type="button">Save goal</button>
+      <div id="goal-status" class="status"></div>
+    </section>
+
+    <section class="card">
+      <h2>Add weigh-in</h2>
+      <label class="field"><span>Weight (lbs)</span><input id="weight-input" type="number" step="0.1" min="1" max="1000"></label>
+      <button id="add-weight" class="btn-primary" type="button">Record weight</button>
+      <div id="weight-status" class="status"></div>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2>Trend</h2>
+        <select id="range"><option value="30d">Last 30 days</option><option value="quarter">Last quarter</option></select>
+      </div>
+      <svg id="chart" viewBox="0 0 320 140" class="weight-chart"></svg>
+      <div id="chart-empty" class="muted">No weigh-ins yet.</div>
+    </section>
+  </div>
+
+  <script src="nav.js" defer></script>
+  <script src="progress.js" defer></script>
+</body>
+</html>

@@ -17,6 +17,7 @@ const WINDOW_EDGE_MINUTES = Number(process.env.REMINDER_EDGE_MINUTES || 15);
 const COOLDOWN_HOURS_OK = Number(process.env.REMINDER_COOLDOWN_HOURS || 20);
 const COOLDOWN_HOURS_ERR = 1;
 const APP_PUBLIC_URL = process.env.APP_PUBLIC_URL || null;
+const APP_OPEN_PATH = process.env.APP_OPEN_PATH || '/fte';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -34,6 +35,7 @@ async function main() {
     cooldownHoursOk: COOLDOWN_HOURS_OK,
     cooldownHoursErr: COOLDOWN_HOURS_ERR,
     appPublicUrl: APP_PUBLIC_URL,
+    appOpenPath: APP_OPEN_PATH,
     logger: console,
   });
 }
