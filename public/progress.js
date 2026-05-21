@@ -107,8 +107,13 @@ function renderChart(checkins, goal) {
   const spanW = Math.max(1, maxW - minW);
   const spanT = Math.max(1, maxT - minT);
   const target = goal?.goal_weight_lbs == null ? null : Number(goal.goal_weight_lbs);
-  const yDomainMin = target == null ? minW : Math.min(minW, target);
-  const yDomainMax = target == null ? maxW : Math.max(maxW, target);
+  const domainMin = target == null ? minW : Math.min(minW, target);
+  const domainMax = target == null ? maxW : Math.max(maxW, target);
+  const baseSpan = Math.max(1, domainMax - domainMin);
+  const topPad = Math.max(1, baseSpan * 0.12);
+  const bottomPad = Math.max(0.5, baseSpan * 0.08);
+  const yDomainMin = Math.max(1, domainMin - bottomPad);
+  const yDomainMax = domainMax + topPad;
   const ySpan = Math.max(1, yDomainMax - yDomainMin);
   const yForWeight = (w) => 124 - ((Number(w) - yDomainMin) / ySpan) * 108;
 
