@@ -1,6 +1,7 @@
 'use strict';
 
 let currentMember = null;
+let currentGoal = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   currentMember = loadMember();
@@ -26,6 +27,7 @@ function loadMember() {
 async function loadGoal() {
   const res = await fetch(`api/me/${currentMember.id}/weight-goal`, { cache: 'no-store' });
   const data = await res.json();
+  currentGoal = data.goal || null;
   if (!data.goal) return;
   document.getElementById('goal-type').value = data.goal.goal_type;
   document.getElementById('goal-weight').value = data.goal.goal_weight_lbs || '';
@@ -50,8 +52,10 @@ async function saveGoal() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to save goal');
+    currentGoal = data.goal || null;
     status.textContent = 'Goal saved.';
     status.classList.remove('error');
+    await loadCheckins();
   } catch (err) {
     status.textContent = err.message;
     status.classList.add('error');
@@ -83,10 +87,10 @@ async function loadCheckins() {
   const range = document.getElementById('range').value;
   const res = await fetch(`api/me/${currentMember.id}/weight-checkins?range=${encodeURIComponent(range)}`, { cache: 'no-store' });
   const data = await res.json();
-  renderChart(data.checkins || []);
+  renderChart(data.checkins || [], currentGoal);
 }
 
-function renderChart(checkins) {
+function renderChart(checkins, goal) {
   const chart = document.getElementById('chart');
   const empty = document.getElementById('chart-empty');
   if (!checkins.length) {
@@ -102,17 +106,41 @@ function renderChart(checkins) {
   const maxT = new Date(checkins[checkins.length - 1].measured_at).getTime();
   const spanW = Math.max(1, maxW - minW);
   const spanT = Math.max(1, maxT - minT);
+  const target = goal?.goal_weight_lbs == null ? null : Number(goal.goal_weight_lbs);
+  const yDomainMin = target == null ? minW : Math.min(minW, target);
+  const yDomainMax = target == null ? maxW : Math.max(maxW, target);
+  const ySpan = Math.max(1, yDomainMax - yDomainMin);
+  const yForWeight = (w) => 124 - ((Number(w) - yDomainMin) / ySpan) * 108;
 
   const points = checkins.map(c => {
     const t = new Date(c.measured_at).getTime();
     const x = 16 + ((t - minT) / spanT) * 288;
-    const y = 124 - ((Number(c.weight_lbs) - minW) / spanW) * 108;
+    const y = yForWeight(c.weight_lbs);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
+
+  const targetLine = target == null ? '' : `
+    <line x1="16" y1="${yForWeight(target).toFixed(1)}" x2="304" y2="${yForWeight(target).toFixed(1)}"
+      stroke="var(--dim)" stroke-dasharray="6 4" />
+    <text x="300" y="${(yForWeight(target) - 6).toFixed(1)}" text-anchor="end" class="chart-label">Target ${target.toFixed(1)} lb</text>
+  `;
+
+  const minDateLabel = formatShortDate(checkins[0].measured_at);
+  const maxDateLabel = formatShortDate(checkins[checkins.length - 1].measured_at);
 
   chart.innerHTML = `
     <line x1="16" y1="124" x2="304" y2="124" stroke="var(--border)" />
     <line x1="16" y1="16" x2="16" y2="124" stroke="var(--border)" />
+    ${targetLine}
     <polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${points}" />
+    <text x="8" y="20" text-anchor="start" class="chart-label">${yDomainMax.toFixed(1)} lb</text>
+    <text x="8" y="132" text-anchor="start" class="chart-label">${yDomainMin.toFixed(1)} lb</text>
+    <text x="16" y="136" text-anchor="start" class="chart-label">${minDateLabel}</text>
+    <text x="304" y="136" text-anchor="end" class="chart-label">${maxDateLabel}</text>
   `;
+}
+
+function formatShortDate(iso) {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
