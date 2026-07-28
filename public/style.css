@@ -87,6 +87,33 @@ header h1 {
   margin: 0.5rem 0;
 }
 
+.hero .elapsed-fast {
+  margin: 0.45rem 0 0.75rem;
+}
+
+.hero .elapsed-label,
+.hero .goal-countdown-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero .elapsed-time {
+  color: var(--accent);
+  font-feature-settings: 'tnum';
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-top: 0.2rem;
+}
+
+.hero .goal-countdown-label {
+  margin-top: 0.2rem;
+}
+
 .hero .target-line {
   color: var(--muted);
   font-size: 0.9rem;

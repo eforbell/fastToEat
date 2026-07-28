@@ -56,6 +56,8 @@ function renderStatus() {
   const btn = document.getElementById('action-btn');
   const label = document.getElementById('state-label');
   const target = document.getElementById('target-line');
+  const elapsedFast = document.getElementById('elapsed-fast');
+  const goalCountdownLabel = document.getElementById('goal-countdown-label');
   const streakBadge = document.getElementById('streak-badge');
   const streakCount = document.getElementById('streak-count');
 
@@ -72,12 +74,16 @@ function renderStatus() {
     const started = new Date(currentStatus.open_session.started_at);
     const plannedEnd = new Date(started.getTime() + currentStatus.open_session.planned_duration_hours * 3600 * 1000);
     label.textContent = 'Fasting';
+    elapsedFast.classList.remove('hidden');
+    goalCountdownLabel.classList.remove('hidden');
     target.textContent = `Target end: ${formatLocalTime(plannedEnd, currentStatus.plan.timezone)} · Plan ${currentStatus.plan.plan}`;
     btn.textContent = 'End fast';
     btn.dataset.mode = 'end';
   } else {
     const w = currentStatus.window;
     label.textContent = w.in_eat_window ? 'Eating window open' : 'Not fasting';
+    elapsedFast.classList.add('hidden');
+    goalCountdownLabel.classList.add('hidden');
     const nextBoundary = w.in_eat_window
       ? new Date(w.eat_end)
       : new Date(w.eat_start);
@@ -105,11 +111,13 @@ function renderStatus() {
 function tick() {
   if (!currentStatus) return;
   const countdown = document.getElementById('countdown');
+  const elapsedTime = document.getElementById('elapsed-time');
   let targetMs;
   if (currentStatus.open_session) {
     const started = new Date(currentStatus.open_session.started_at).getTime();
     const plannedEnd = started + currentStatus.open_session.planned_duration_hours * 3600 * 1000;
     targetMs = plannedEnd;
+    elapsedTime.textContent = formatElapsedDuration(Date.now() - started);
   } else if (currentStatus.window.in_eat_window) {
     targetMs = new Date(currentStatus.window.eat_end).getTime();
   } else {
@@ -127,6 +135,18 @@ function formatDuration(ms) {
   const secs = total % 60;
   const pad = n => String(n).padStart(2, '0');
   return `${sign}${pad(hours)}:${pad(mins)}:${pad(secs)}`;
+}
+
+function formatElapsedDuration(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const mins = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  const pad = n => String(n).padStart(2, '0');
+  return days > 0
+    ? `${days}d ${pad(hours)}:${pad(mins)}:${pad(secs)}`
+    : `${pad(hours)}:${pad(mins)}:${pad(secs)}`;
 }
 
 function formatLocalTime(date, timezone) {
