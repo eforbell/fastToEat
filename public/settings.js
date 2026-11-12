@@ -1,5 +1,7 @@
 'use strict';
 
+let pushRegistrationRequest;
+
 let currentMember = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -66,6 +68,8 @@ async function loadNotifications() {
 }
 
 async function saveNotifications(clear) {
+  const verificationRequest = Symbol();
+  pushRegistrationRequest = verificationRequest;
   const status = document.getElementById('notif-status');
   const secretInput = document.getElementById('brrr-secret');
   try {
@@ -80,6 +84,7 @@ async function saveNotifications(clear) {
       body: JSON.stringify(body),
     });
     const data = await res.json();
+    if (pushRegistrationRequest !== verificationRequest) return;
     if (!res.ok) throw new Error(data.error || 'Could not save');
     secretInput.value = '';
     document.getElementById('secret-preview').textContent = data.has_secret
@@ -88,6 +93,7 @@ async function saveNotifications(clear) {
     status.textContent = clear ? 'Secret cleared.' : `Saved. ${data.verification.message}`;
     status.classList.remove('error');
   } catch (err) {
+    if (pushRegistrationRequest !== verificationRequest) return;
     status.textContent = err.message;
     status.classList.add('error');
   }
@@ -100,13 +106,17 @@ async function hasExistingSecret() {
 }
 
 async function checkNotificationRegistration() {
+  const verificationRequest = Symbol();
+  pushRegistrationRequest = verificationRequest;
   const el = document.getElementById('notif-status');
   el.textContent = 'Checking saved secret (no notification)…';
   el.classList.remove('error');
   try {
     const res = await fetch(`api/me/${currentMember.id}/notifications/check`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     const data = await res.json();
+    if (pushRegistrationRequest !== verificationRequest) return;
     if (!res.ok) throw new Error(data.error || 'Could not check saved registration');
     el.textContent = data.message;
-  } catch (err) { el.textContent = err.message; el.classList.add('error'); }
+  } catch (err) {
+    if (pushRegistrationRequest !== verificationRequest) return; el.textContent = err.message; el.classList.add('error'); }
 }
