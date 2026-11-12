@@ -1,5 +1,7 @@
 'use strict';
 
+const { checkPushSecret } = require('./lib/push-check');
+
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
@@ -748,6 +750,15 @@ app.get('/api/me/:id/notifications', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/me/:id/notifications/check', async (req, res) => {
+  try {
+    const memberId = Number(req.params.id);
+    if (!Number.isInteger(memberId) || memberId < 1) return res.status(400).json({ error: 'Invalid member id' });
+    const { rows } = await pool.query("SELECT target_secret FROM member_notification_channels WHERE member_id = $1 AND channel_type = 'brrr'", [memberId]);
+    res.set('Cache-Control', 'no-store').json(await checkPushSecret(rows[0]?.target_secret));
+  } catch { res.status(500).json({ error: 'Could not check saved push registration' }); }
+});
+
 app.put('/api/me/:id/notifications', async (req, res) => {
   try {
     const memberId = Number(req.params.id);
@@ -782,6 +793,7 @@ app.put('/api/me/:id/notifications', async (req, res) => {
       enabled,
       has_secret: Boolean(newSecret),
       secret_preview: newSecret ? maskSecret(newSecret) : null,
+      verification: await checkPushSecret(newSecret),
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
