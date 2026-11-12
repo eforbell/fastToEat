@@ -17,7 +17,7 @@ First visit redirects to `/setup` so you can create the household. Then `/login`
 
 ## Deployment
 
-Designed to run behind nginx at `/fte/` on the home server. See `deploy/` for systemd unit + reminder timer, and see `homeBase/src/catalog.js` for the full manifest entry.
+Designed to run behind nginx at `/fte/` on the home server. It listens on loopback (`PORT` 3005, `HOST` to override) or, under Home Base, on the Unix socket `SOVEREIGN_LISTEN=unix:/path/app.sock` names; set at all, even blank, that must name a socket. See `deploy/` for systemd unit + reminder timer, and see `homeBase/src/catalog.js` for the full manifest entry.
 
 See [`CLAUDE.md`](./CLAUDE.md) for architecture.
 
