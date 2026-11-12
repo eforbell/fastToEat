@@ -59,6 +59,19 @@ app.use((req, res, next) => suite.requireMember(req, res, next));
 
 app.use(express.json({ limit: '64kb' }));
 
+// In tailnet mode everyone, parent or kid, acts only as their own linked member: a member ID a request names in its
+// body is replaced by theirs, and one in the path (/api/me/:id/...) must be theirs. Weight, plans and notification
+// settings are personal: nobody reads or changes another member's. Local mode keeps the picker's choice.
+function actingMemberId(req, requested) {
+  return suite.tailnet ? req.familyMember.id : requested;
+}
+// Express hands this every spelling that reaches an /api/me/:id route (any letter case, a trailing slash, an encoded
+// ID), with the ID decoded, so the check sees what the route's handler will read.
+app.use('/api/me/:id', (req, res, next) => {
+  if (!suite.tailnet || Number(req.params.id) === req.familyMember?.id) return next();
+  return res.status(403).set('Cache-Control', 'no-store').json({ error: 'You can only see and change your own fasting', code: 'not_yours' });
+});
+
 // ── Bootstrap gate ────────────────────────────────────────────
 
 async function bootstrapState() {
@@ -123,6 +136,8 @@ app.get('/sovereign-fonts.css', (_req, res) => {
   res.send(buildSovereignFontsCss());
 });
 
+// In tailnet mode Home Base says who this is, so the picker's page (and its file) goes to the app.
+app.get(['/login', '/login.html'], (_req, res, next) => (suite.tailnet ? res.redirect(303, suite.basePath) : next()));
 // The link page is served by its route (/link), which checks the directory's role; its file is not a static page.
 app.get('/link.html', (_req, res) => res.redirect(303, 'link'));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
@@ -144,6 +159,15 @@ app.get('/api/bootstrap', async (req, res) => {
     res.json(state);
   }
   catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Who the pages are showing. In tailnet mode it's the linked member, with the directory's role, and the pages skip
+// the picker; in local mode there's nobody, and the picker asks. Not under /api/me/, whose next segment is an ID.
+app.get('/api/whoami', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!suite.tailnet) return res.json({ mode: 'local', member: null });
+  const { id, name, avatar_emoji } = req.familyMember;
+  return res.json({ mode: 'tailnet', member: { id, name, avatar_emoji, role: req.suiteMember.role === 'parent' ? 'parent' : 'kid' } });
 });
 
 const BOOTSTRAP_PARENT_AVATARS = ['🧑', '👩', '👨', '🧑‍🎓'];
@@ -540,7 +564,7 @@ app.get('/api/me/:id/status', async (req, res) => {
 
 app.post('/api/fast/start', async (req, res) => {
   try {
-    const memberId = Number(req.body?.member_id);
+    const memberId = actingMemberId(req, Number(req.body?.member_id));
     if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).json({ error: 'bad member_id' });
 
     const plan = await ensurePlan(pool, memberId);
@@ -566,7 +590,7 @@ app.post('/api/fast/start', async (req, res) => {
 
 app.post('/api/fast/end', async (req, res) => {
   try {
-    const memberId = Number(req.body?.member_id);
+    const memberId = actingMemberId(req, Number(req.body?.member_id));
     if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).json({ error: 'bad member_id' });
     const note = req.body?.break_meal_note ? String(req.body.break_meal_note).slice(0, 500) : null;
 
@@ -632,7 +656,8 @@ app.put('/api/fast/:sessionId/times', async (req, res) => {
   try {
     const sessionId = Number(req.params.sessionId);
     if (!Number.isInteger(sessionId) || sessionId <= 0) return res.status(400).json({ error: 'bad sessionId' });
-    const memberId = Number(req.body?.member_id);
+    // The session must be the requester's own: checked against this ID below.
+    const memberId = actingMemberId(req, Number(req.body?.member_id));
     if (!Number.isInteger(memberId) || memberId <= 0) return res.status(400).json({ error: 'bad member_id' });
 
     const newStartedAt = req.body.started_at ? new Date(req.body.started_at) : null;
@@ -653,7 +678,7 @@ app.put('/api/fast/:sessionId/times', async (req, res) => {
       );
       const session = rows[0];
       if (!session) return res.status(404).json({ error: 'session not found' });
-      if (session.member_id !== memberId) return res.status(403).json({ error: 'session belongs to another member' });
+      if (session.member_id !== memberId) return res.status(403).set('Cache-Control', 'no-store').json({ error: 'session belongs to another member' });
 
       const isOpen = session.ended_at === null;
       if (isOpen && newEndedAt) return res.status(400).json({ error: 'cannot set ended_at on an open session' });

@@ -3,9 +3,11 @@
 let currentMember = null;
 let currentStatus = null;
 let tickTimer = null;
+// Tailnet mode: Home Base says who this is, so there's no switching to someone else.
+let suiteTailnet = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  currentMember = loadMember();
+  currentMember = await loadMember();
   if (!currentMember) return window.location.replace('login');
 
   document.getElementById('greeting').textContent = `⏱️ Hi, ${currentMember.name}`;
@@ -22,6 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       input.value = toLocalInputValue(d);
     });
   });
+  document.getElementById('switch-user').classList.toggle('hidden', suiteTailnet);
   document.getElementById('switch-user').addEventListener('click', () => {
     localStorage.removeItem('fte_member');
     window.location.replace('login');
@@ -32,7 +35,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   tickTimer = setInterval(tick, 1000);
 });
 
-function loadMember() {
+// Tailnet mode: Home Base says who this is (api/whoami), and the picker never opens. Local mode: the picker's choice.
+async function loadMember() {
+  try {
+    const res = await fetch('api/whoami', { cache: 'no-store' });
+    const me = res.ok ? await res.json() : null;
+    if (me && me.mode === 'tailnet') {
+      suiteTailnet = true;
+      return me.member;
+    }
+  } catch {
+    // An older server, or offline: the picker's choice, as before.
+  }
   try {
     const raw = localStorage.getItem('fte_member');
     if (!raw) return null;
