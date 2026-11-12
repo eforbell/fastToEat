@@ -338,6 +338,8 @@ test('pages take the member from Home Base in tailnet mode, and the picker\'s ch
   for (const file of ['app.js', 'calendar.js', 'progress.js', 'settings.js']) {
     // Tailnet: the linked member, whatever the device's picker last stored.
     assert.deepEqual(await runPage(file, answer({ mode: 'tailnet', member: LINKED }), PICKED).context.loadMember(), LINKED, file);
+    // Tailnet mode never falls back to the picker's stored choice, even if Home Base names nobody.
+    assert.equal(await runPage(file, answer({ mode: 'tailnet', member: null }), PICKED).context.loadMember(), null, file);
     // Local, an older server without whoami, or offline: the picker's choice, as before.
     for (const whoami of [answer({ mode: 'local', member: null }), answer({ error: 'Not found' }, false), async () => { throw new Error('offline'); }]) {
       assert.deepEqual(await runPage(file, whoami, PICKED).context.loadMember(), { id: 7, name: 'Picked' }, file);

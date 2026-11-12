@@ -22,7 +22,7 @@ function snapshotOf(members) {
 }
 const as = (userId, login) => ({ 'x-sovereign-user-id': userId, 'x-sovereign-login': login });
 const PARENT = { userId: 'u-parent', memberId: 'm_parent', login: 'parent@example.com', name: 'Parent' };
-const KID = { userId: 'u-kid', memberId: 'm_kid', login: 'kid@example.com', name: '<b>Kid</b>', role: 'kid' };
+const KID = { userId: 'u-kid', memberId: 'm_kid', login: 'kid@example.com', name: '<b>Kid</b> & co', role: 'kid' };
 const PARENT_HEADERS = as('u-parent', 'parent@example.com');
 const KID_HEADERS = as('u-kid', 'kid@example.com');
 
@@ -237,6 +237,8 @@ test('a kid\'s account opens only a kid\'s row, checked on every request', async
     assert.match(text, /Ask a parent to link you again/);
     // The page names who is asking, as text: a name is never markup.
     assert.match(text, /&lt;b&gt;Kid&lt;\/b&gt;/);
+    // Escaped once: the page shows the name as written.
+    assert.match(text, /&lt;b&gt;Kid&lt;\/b&gt; &amp; co/);
     assert.doesNotMatch(text, /<b>Kid/);
   });
   // The same row and account, while the directory still says parent: through.
