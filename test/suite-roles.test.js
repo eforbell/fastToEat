@@ -289,3 +289,76 @@ test('first-run setup in tailnet mode: only an unlinked parent, only while there
     }
   });
 });
+
+// The pages, run as the browser would with a stand-in fetch, document and localStorage.
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+function element() {
+  const classes = new Set();
+  return {
+    textContent: '', value: '', dataset: {}, disabled: false,
+    classList: {
+      add: (c) => classes.add(c), remove: (c) => classes.delete(c), contains: (c) => classes.has(c),
+      toggle: (c, on = !classes.has(c)) => { if (on) classes.add(c); else classes.delete(c); return on; },
+    },
+    addEventListener() {},
+  };
+}
+function runPage(file, whoami, stored) {
+  const fetched = [];
+  const elements = new Map();
+  let ready = null;
+  const redirects = [];
+  const context = vm.createContext({
+    document: {
+      addEventListener: (event, fn) => { if (event === 'DOMContentLoaded') ready = fn; },
+      getElementById: (id) => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); },
+      querySelectorAll: () => [],
+    },
+    window: { location: { replace: (to) => redirects.push(to) } },
+    localStorage: { getItem: (key) => (key === 'fte_member' ? stored : null), setItem() {}, removeItem() {} },
+    fetch: async (url) => {
+      fetched.push(url);
+      if (url === 'api/whoami') return whoami();
+      return { ok: false, status: 503, json: async () => ({ error: 'stand-in' }) };
+    },
+    setInterval: () => 0,
+    Intl, Date, Promise, JSON,
+  });
+  new vm.Script(fs.readFileSync(path.join(__dirname, '..', 'public', file), 'utf8'), { filename: file }).runInContext(context);
+  return { context, fetched, elements, redirects, ready: () => ready() };
+}
+const answer = (body, ok = true) => async () => ({ ok, json: async () => body });
+const PICKED = JSON.stringify({ id: 7, name: 'Picked' });
+const LINKED = { id: KID_ID, name: 'Kid', avatar_emoji: '🧒', role: 'kid' };
+
+test('pages take the member from Home Base in tailnet mode, and the picker\'s choice in local mode', async () => {
+  for (const file of ['app.js', 'calendar.js', 'progress.js', 'settings.js']) {
+    // Tailnet: the linked member, whatever the device's picker last stored.
+    assert.deepEqual(await runPage(file, answer({ mode: 'tailnet', member: LINKED }), PICKED).context.loadMember(), LINKED, file);
+    // Local, an older server without whoami, or offline: the picker's choice, as before.
+    for (const whoami of [answer({ mode: 'local', member: null }), answer({ error: 'Not found' }, false), async () => { throw new Error('offline'); }]) {
+      assert.deepEqual(await runPage(file, whoami, PICKED).context.loadMember(), { id: 7, name: 'Picked' }, file);
+      assert.equal(await runPage(file, whoami, null).context.loadMember(), null, file);
+    }
+  }
+});
+
+test('the Today page offers no switching in tailnet mode, and keeps it in local mode', async () => {
+  const tailnetPage = runPage('app.js', answer({ mode: 'tailnet', member: LINKED }), PICKED);
+  await tailnetPage.ready();
+  assert.ok(tailnetPage.elements.get('switch-user').classList.contains('hidden'));
+  assert.ok(tailnetPage.fetched.includes(`api/me/${KID_ID}/status`), 'reads the linked member\'s own status');
+  assert.deepEqual(tailnetPage.redirects, []);
+
+  const localPage = runPage('app.js', answer({ mode: 'local', member: null }), PICKED);
+  await localPage.ready();
+  assert.ok(!localPage.elements.get('switch-user').classList.contains('hidden'));
+  assert.ok(localPage.fetched.includes('api/me/7/status'));
+  // Nobody picked yet, in local mode: the picker, as before.
+  const unpicked = runPage('app.js', answer({ mode: 'local', member: null }), null);
+  await unpicked.ready();
+  assert.deepEqual(unpicked.redirects, ['login']);
+});

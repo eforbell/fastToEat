@@ -5,7 +5,7 @@ let pushRegistrationRequest;
 let currentMember = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  currentMember = loadMember();
+  currentMember = await loadMember();
   if (!currentMember) return window.location.replace('login');
 
   document.getElementById('save-plan').addEventListener('click', savePlan);
@@ -16,7 +16,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   await Promise.all([loadPlan(), loadNotifications()]);
 });
 
-function loadMember() {
+// Tailnet mode: Home Base says who this is (api/whoami), and the picker never opens. Local mode: the picker's choice.
+async function loadMember() {
+  try {
+    const res = await fetch('api/whoami', { cache: 'no-store' });
+    const me = res.ok ? await res.json() : null;
+    if (me && me.mode === 'tailnet') {
+      return me.member;
+    }
+  } catch {
+    // An older server, or offline: the picker's choice, as before.
+  }
   try {
     const raw = localStorage.getItem('fte_member');
     if (!raw) return null;
