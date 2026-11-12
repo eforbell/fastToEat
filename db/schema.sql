@@ -7,7 +7,9 @@ CREATE TABLE IF NOT EXISTS family_members (
   role            TEXT NOT NULL CHECK (role IN ('parent', 'kid')),
   avatar_emoji    TEXT DEFAULT '👤',
   color           TEXT,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- The Home Base household member this is, in tailnet mode (migration 0005).
+  suite_member_id TEXT UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS app_config (

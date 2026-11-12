@@ -19,6 +19,7 @@ const { PLAN_HOURS, currentWindow, effectiveWindow, planHours } = require('./lib
 const { computeStreak } = require('./lib/streaks');
 const { maskSecret } = require('./lib/notifications');
 const { describe: describeListen, listen } = require('./lib/listen');
+const { createSuiteIdentity } = require('./lib/suite-identity');
 
 const app = express();
 const DEFAULT_SOVEREIGN_FONT_SANS_CSS_URL = 'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap';
@@ -44,6 +45,17 @@ function buildSovereignFontsCss() {
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const DEFAULT_TIMEZONE = process.env.HOUSEHOLD_TIMEZONE || 'America/Los_Angeles';
+
+// Which sign-in Fast to Eat trusts (lib/suite-identity.js); a bad configuration refuses to start. In tailnet mode
+// every write must be JSON from the app's own origin, checked before anything reads the request, and every request
+// needs a household member a parent has linked to a Fast to Eat family member.
+async function findLinkedMember(suiteMemberId) {
+  const { rows } = await pool.query('SELECT * FROM family_members WHERE suite_member_id = $1', [suiteMemberId]);
+  return rows[0] || null;
+}
+let suite = createSuiteIdentity(process.env, { findLinked: findLinkedMember });
+app.use((req, res, next) => suite.guard(req, res, next));
+app.use((req, res, next) => suite.requireMember(req, res, next));
 
 app.use(express.json({ limit: '64kb' }));
 
@@ -119,8 +131,16 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', app: 'fast-to-eat', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/bootstrap', async (_req, res) => {
-  try { res.json(await bootstrapState()); }
+app.get('/api/bootstrap', async (req, res) => {
+  try {
+    const state = await bootstrapState();
+    // In tailnet mode a parent nobody has linked yet may run first-run setup, so setup's status tells them only
+    // whether a household is still needed: no counts, nothing else about the household's data.
+    if (suite.tailnet && !req.familyMember) {
+      return res.set('Cache-Control', 'no-store').json({ app: state.app, bootstrap: { needs_household: state.bootstrap.needs_household } });
+    }
+    res.json(state);
+  }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -822,4 +842,9 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app };
+// Tests rebuild the identity with another environment; the middleware above reads `suite` on every request.
+function setSuiteIdentityForTests(env, options) {
+  suite = createSuiteIdentity(env, { findLinked: findLinkedMember, ...options });
+}
+
+module.exports = { app, pool, setSuiteIdentityForTests };
