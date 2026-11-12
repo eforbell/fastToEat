@@ -69,9 +69,10 @@
       <div id="secret-preview" class="muted" style="font-size:0.85rem"></div>
       <div class="row" style="margin-top:0.5rem">
         <button id="save-notif" class="btn-primary" type="button">Save notifications</button>
+        <button id="check-notif" class="btn-ghost" type="button">Verify saved secret (no push)</button>
         <button id="clear-notif" class="btn-ghost" type="button">Clear secret</button>
       </div>
-      <div id="notif-status" class="status"></div>
+      <div id="notif-status" class="status" role="status" aria-live="polite"></div>
     </section>
 
     <section class="card">

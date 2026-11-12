@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('save-plan').addEventListener('click', savePlan);
   document.getElementById('save-notif').addEventListener('click', () => saveNotifications(false));
+  document.getElementById('check-notif').addEventListener('click', checkNotificationRegistration);
   document.getElementById('clear-notif').addEventListener('click', () => saveNotifications(true));
 
   await Promise.all([loadPlan(), loadNotifications()]);
@@ -84,7 +85,7 @@ async function saveNotifications(clear) {
     document.getElementById('secret-preview').textContent = data.has_secret
       ? `Saved secret: ${data.secret_preview} (${data.enabled ? 'enabled' : 'disabled'})`
       : 'No brrr secret saved.';
-    status.textContent = clear ? 'Secret cleared.' : 'Saved.';
+    status.textContent = clear ? 'Secret cleared.' : `Saved. ${data.verification.message}`;
     status.classList.remove('error');
   } catch (err) {
     status.textContent = err.message;
@@ -96,4 +97,16 @@ async function hasExistingSecret() {
   const res = await fetch(`api/me/${currentMember.id}/notifications`, { cache: 'no-store' });
   const data = await res.json();
   return Boolean(data.has_secret);
+}
+
+async function checkNotificationRegistration() {
+  const el = document.getElementById('notif-status');
+  el.textContent = 'Checking saved secret (no notification)…';
+  el.classList.remove('error');
+  try {
+    const res = await fetch(`api/me/${currentMember.id}/notifications/check`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not check saved registration');
+    el.textContent = data.message;
+  } catch (err) { el.textContent = err.message; el.classList.add('error'); }
 }
