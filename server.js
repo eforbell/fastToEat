@@ -19,6 +19,7 @@ const { PLAN_HOURS, currentWindow, effectiveWindow, planHours } = require('./lib
 const { computeStreak } = require('./lib/streaks');
 const { maskSecret } = require('./lib/notifications');
 const { describe: describeListen, listen } = require('./lib/listen');
+const { createSuiteIdentity } = require('./lib/suite-identity');
 
 const app = express();
 const DEFAULT_SOVEREIGN_FONT_SANS_CSS_URL = 'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap';
@@ -44,6 +45,17 @@ function buildSovereignFontsCss() {
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const DEFAULT_TIMEZONE = process.env.HOUSEHOLD_TIMEZONE || 'America/Los_Angeles';
+
+// Which sign-in Fast to Eat trusts (lib/suite-identity.js); a bad configuration refuses to start. In tailnet mode
+// every write must be JSON from the app's own origin, checked before anything reads the request, and every request
+// needs a household member a parent has linked to a Fast to Eat family member.
+async function findLinkedMember(suiteMemberId) {
+  const { rows } = await pool.query('SELECT * FROM family_members WHERE suite_member_id = $1', [suiteMemberId]);
+  return rows[0] || null;
+}
+let suite = createSuiteIdentity(process.env, { findLinked: findLinkedMember });
+app.use((req, res, next) => suite.guard(req, res, next));
+app.use((req, res, next) => suite.requireMember(req, res, next));
 
 app.use(express.json({ limit: '64kb' }));
 
@@ -111,6 +123,8 @@ app.get('/sovereign-fonts.css', (_req, res) => {
   res.send(buildSovereignFontsCss());
 });
 
+// The link page is served by its route (/link), which checks the directory's role; its file is not a static page.
+app.get('/link.html', (_req, res) => res.redirect(303, 'link'));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ── Health / bootstrap ────────────────────────────────────────
@@ -119,8 +133,16 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', app: 'fast-to-eat', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/bootstrap', async (_req, res) => {
-  try { res.json(await bootstrapState()); }
+app.get('/api/bootstrap', async (req, res) => {
+  try {
+    const state = await bootstrapState();
+    // In tailnet mode a parent nobody has linked yet may run first-run setup, so setup's status tells them only
+    // whether a household is still needed: no counts, nothing else about the household's data.
+    if (suite.tailnet && !req.familyMember) {
+      return res.set('Cache-Control', 'no-store').json({ app: state.app, bootstrap: { needs_household: state.bootstrap.needs_household } });
+    }
+    res.json(state);
+  }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -207,6 +229,74 @@ app.get('/api/members', async (_req, res) => {
     );
     res.json({ members: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Linking household members (tailnet mode) ─────────────────
+// A parent, as Home Base's directory says now, links each Fast to Eat family member to the household member they
+// are. The directory's role is checked on every request; the local row's role never grants this.
+
+function requireSuiteParent(req, res, next) {
+  if (!suite.tailnet) return res.status(404).json({ error: 'Not found' });
+  if (req.suiteMember?.role !== 'parent') {
+    return res.status(403).set('Cache-Control', 'no-store').json({ error: 'Only a parent can link household members', code: 'parent_required' });
+  }
+  return next();
+}
+
+app.get('/link', (req, res, next) => {
+  if (!suite.tailnet) return next();
+  res.set('Cache-Control', 'no-store');
+  if (req.suiteMember?.role !== 'parent') return res.status(403).type('text').send('Only a parent can link household members.');
+  return res.sendFile(path.join(__dirname, 'public', 'link.html'));
+});
+
+app.get('/api/suite/links', requireSuiteParent, async (req, res) => {
+  try {
+    const directory = suite.directory();
+    if (!directory) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'The household directory is unavailable', code: 'directory' });
+    const { rows } = await pool.query('SELECT id, name, role, avatar_emoji, suite_member_id FROM family_members ORDER BY id');
+    res.set('Cache-Control', 'no-store').json({ you: req.suiteMember.memberId, directory, members: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/suite/links/:id', requireSuiteParent, async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    const id = /^[1-9][0-9]{0,9}$/.test(req.params.id) ? Number(req.params.id) : null;
+    if (!id) return res.status(404).json({ error: 'No such Fast to Eat member', code: 'not_found' });
+    const wanted = req.body?.suite_member_id;
+    let account = null;
+    if (wanted !== null) {
+      const directory = suite.directory();
+      if (!directory) return res.status(503).json({ error: 'The household directory is unavailable', code: 'directory' });
+      account = typeof wanted === 'string' ? directory.find(member => member.memberId === wanted) : null;
+      if (!account) {
+        return res.status(400).json({ error: 'Pick a household member who has access to Fast to Eat', code: 'unknown_member' });
+      }
+    }
+    // A kid's account takes only a kid's row: it would otherwise act as a parent. Enforced in the UPDATE, so no
+    // other request can slip in between a check and the write.
+    const kidOnly = account?.role === 'kid';
+    const { rows } = await pool.query(
+      `UPDATE family_members SET suite_member_id = $1 WHERE id = $2${kidOnly ? " AND role = 'kid'" : ''}
+       RETURNING id, name, role, avatar_emoji, suite_member_id`,
+      [wanted, id]
+    );
+    if (!rows.length) {
+      if (kidOnly) {
+        const { rows: found } = await pool.query('SELECT id FROM family_members WHERE id = $1', [id]);
+        if (found.length) return res.status(409).json({ error: 'A kid\'s household account can only be linked to a kid', code: 'kid_to_parent' });
+      }
+      return res.status(404).json({ error: 'No such Fast to Eat member', code: 'not_found' });
+    }
+    console.log(`[suite-link] ${req.suiteMember.memberId} ${wanted ? `linked member ${id} to ${wanted}` : `unlinked member ${id}`}`);
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'That household member is already linked to someone else', code: 'already_linked' });
+    }
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Plan ─────────────────────────────────────────────────────
@@ -822,4 +912,9 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app };
+// Tests rebuild the identity with another environment; the middleware above reads `suite` on every request.
+function setSuiteIdentityForTests(env, options) {
+  suite = createSuiteIdentity(env, { findLinked: findLinkedMember, ...options });
+}
+
+module.exports = { app, pool, setSuiteIdentityForTests };
